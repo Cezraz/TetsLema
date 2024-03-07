@@ -18,6 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -41,6 +44,20 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for ButtonTask */
+osThreadId_t ButtonTaskHandle;
+const osThreadAttr_t ButtonTask_attributes = {
+  .name = "ButtonTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -48,13 +65,34 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+void StartDefaultTask(void *argument);
+void ButtonTask1(void *argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+uint8_t led_state = 1;
+void BtnTsk1(void *argument)
+	{
+		GPIO_PinState button_state = GPIO_PIN_SET;
+		GPIO_PinState last_button_state = GPIO_PIN_SET;
+	  for(;;)
+	  {
+		  button_state=HAL_GPIO_ReadPin(Usr_btn_GPIO_Port, Usr_btn_Pin);
+		  		  if (button_state != last_button_state)
+		  		  {
+		  			 if (button_state == GPIO_PIN_RESET)
+		  			 {
+		  				 led_state = !led_state;
+		  				 HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin,led_state);
+		  			 }
+		  			 last_button_state = button_state;
+		  		  }
+	  }
+	}
 /* USER CODE END 0 */
 
 /**
@@ -86,26 +124,63 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-  uint8_t led_state = 1;
-  GPIO_PinState button_state = GPIO_PIN_SET;
-  GPIO_PinState last_button_state = GPIO_PIN_SET;
+
+
   /* USER CODE END 2 */
 
+  /* Init scheduler */
+  osKernelInitialize();
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of ButtonTask */
+  ButtonTaskHandle = osThreadNew(ButtonTask1, NULL, &ButtonTask_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  	xTaskCreate(
+  			  BtnTsk1,
+			  "BTN_TSK",
+			  50*4,
+			  NULL,
+			  tskIDLE_PRIORITY,
+			  NULL);
+  vTaskStartScheduler();
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  button_state=HAL_GPIO_ReadPin(Usr_btn_GPIO_Port, Usr_btn_Pin);
-	  if (button_state != last_button_state)
-	  {
-		 if (button_state == GPIO_PIN_RESET)
-		 {
-			 led_state = !led_state;
-			 HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin,led_state);
-		 }
-		 last_button_state = button_state;
-	  }
-
+	  /*HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin,GPIO_PIN_RESET);
+	  HAL_Delay(100);
+	  HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin,GPIO_PIN_SET);
+	  HAL_Delay(100);*/
 
     /* USER CODE END WHILE */
 
@@ -205,6 +280,53 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_ButtonTask1 */
+/**
+* @brief Function implementing the ButtonTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_ButtonTask1 */
+void ButtonTask1(void *argument)
+{
+  /* USER CODE BEGIN ButtonTask1 */
+	GPIO_PinState button_state = GPIO_PIN_SET;
+	GPIO_PinState last_button_state = GPIO_PIN_SET;
+  /* Infinite loop */
+  for(;;)
+  {
+	  button_state=HAL_GPIO_ReadPin(Usr_btn_GPIO_Port, Usr_btn_Pin);
+	  		  if (button_state != last_button_state)
+	  		  {
+	  			 if (button_state == GPIO_PIN_RESET)
+	  			 {
+	  				 led_state = !led_state;
+	  				 HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin,led_state);
+	  			 }
+	  			 last_button_state = button_state;
+	  		  }
+  }
+  /* USER CODE END ButtonTask1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
